@@ -36,17 +36,8 @@ func (p *ProxyServer) Listen() error {
 			p.logger.With(zap.String("client", conn.RemoteAddr().String())).Error(err.Error())
 			continue
 		}
-		p.cons++
 		p.logger.With(zap.String("client", conn.RemoteAddr().String())).Info("connected")
-		go func() {
-			defer func() { _ = conn.Close(); p.cons-- }()
-			err := (NewProxy(conn)).run()
-			if err == io.EOF {
-				p.logger.With(zap.Any("client", conn.RemoteAddr())).Info("client closed")
-			} else {
-				p.logger.With(zap.String("client", conn.RemoteAddr().String())).Error(err)
-			}
-		}()
+		p.proxy(conn)
 	}
 }
 
@@ -55,5 +46,14 @@ func (p *ProxyServer) run() (net.Listener, error) {
 }
 
 func (p *ProxyServer) proxy(conn net.Conn) {
-
+	p.cons++
+	go func() {
+		defer func() { _ = conn.Close(); p.cons-- }()
+		err := (NewProxy(conn)).run()
+		if err == io.EOF {
+			p.logger.With(zap.Any("client", conn.RemoteAddr())).Info("client closed")
+		} else {
+			p.logger.With(zap.String("client", conn.RemoteAddr().String())).Error(err)
+		}
+	}()
 }
